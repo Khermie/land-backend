@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import MobileTabBar from "../common/MobileTabBar";
-import { CONVERSATIONS, resolveMessageContact } from "../../constants/messages";
+import { useMessages } from "../../context/MessagesContext";
 import { cn } from "../../utils/cn";
 
 function ChevronLeftIcon({ className }) {
@@ -36,23 +36,39 @@ function ShieldIcon({ className }) {
   );
 }
 
-const STORAGE_KEY = "terramatch_messages";
+function BoltIcon({ className }) {
+  return (
+    <svg viewBox="0 0 24 24" className={cn("fill-current", className)} aria-hidden="true">
+      <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" />
+    </svg>
+  );
+}
 
-function initConversations() {
-  // Restore from sessionStorage if a previous visit this session left
-  // sent messages behind — otherwise every navigation away from
-  // Messages (e.g. tapping "Land" then coming back) would silently
-  // wipe out anything just sent, since this component previously held
-  // conversations only in local state that reset on remount.
-  try {
-    const stored = sessionStorage.getItem(STORAGE_KEY);
-    if (stored) return JSON.parse(stored);
-  } catch {
-    // fall through to the fresh default below
-  }
-  // Shallow-safe clone so local edits (send/read state) don't mutate
-  // the shared CONVERSATIONS module data.
-  return CONVERSATIONS.map((c) => ({ ...c, messages: [...c.messages] }));
+/**
+ * Compact card showing which land listing a conversation is about —
+ * title, primary image, price, location, and the listing id (its
+ * slug, which is this project's real unique identifier for a
+ * listing). Shown at the top of a thread whenever landContext is set,
+ * so both the buyer and the owner always know which listing is under
+ * discussion, per the Buy Now requirement.
+ */
+function LandContextCard({ landContext }) {
+  return (
+    <div className="flex items-center gap-3 border-b border-ink-900/10 bg-forest-50/60 px-4 py-3">
+      <img
+        src={landContext.image}
+        alt={landContext.title}
+        className="h-12 w-14 shrink-0 rounded-lg bg-mist-100 object-cover"
+      />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-ink-900">{landContext.title}</p>
+        <p className="truncate text-xs text-ink-500">
+          {landContext.price} · {landContext.location}
+        </p>
+      </div>
+      <span className="shrink-0 text-[10px] text-ink-400">#{landContext.slug}</span>
+    </div>
+  );
 }
 
 /**
@@ -62,63 +78,37 @@ function initConversations() {
  * desktop messaging UI. Renders without the site's Navbar/Footer (see
  * App.jsx's CHROMELESS_ROUTES) — MobileTabBar is the only navigation.
  *
- * Sending a message is real local state (appends to that thread and
- * clears the draft), persisted to sessionStorage so it survives
- * navigating away and back or refreshing the page — it resets for a
- * new browser tab/session, same as the auth state in AuthContext.jsx,
- * since there's no backend to actually save to.
+ * Conversation state now lives in MessagesContext (shared with the Buy
+ * Now flow — see BuyNowModal.jsx and context/MessagesContext.jsx)
+ * rather than local state, so a conversation created from a listing
+ * card shows up here immediately with everything already in sync.
  *
  * Arriving at /messages?contact=<slug> (from a "Message Now" button on
- * a contractor or land owner profile) opens that person's thread —
- * reusing an existing one if they already have a conversation below,
- * or creating an empty one on the fly via resolveMessageContact() if
- * not. An unrecognized slug is ignored rather than crashing.
+ * a contractor or land owner profile, or from Buy Now) opens that
+ * person's thread — reusing an existing one if they already have a
+ * conversation, or creating an empty one on the fly if not. An
+ * unrecognized slug is ignored rather than crashing. Buy Now also
+ * passes a suggested, still-editable message via router state
+ * (location.state.prefillDraft) rather than sending it automatically.
  */
 export default function MessagesView() {
-  const [conversations, setConversations] = useState(initConversations);
+  const { conversations, totalUnread, ensureConversation, markRead, sendMessage } = useMessages();
   const [selectedId, setSelectedId] = useState(null);
   const [draft, setDraft] = useState("");
+  const [justSentNotice, setJustSentNotice] = useState(false);
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const contactSlug = searchParams.get("contact");
-
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
-    } catch {
-      // ignore — worst case, state doesn't persist across navigation
-    }
-  }, [conversations]);
+  const prefillDraft = location.state?.prefillDraft;
 
   useEffect(() => {
     if (!contactSlug) return;
-
-    const alreadyExists = conversations.some((c) => c.id === contactSlug);
-
-    if (alreadyExists) {
-      setConversations((prev) =>
-        prev.map((c) => (c.id === contactSlug ? { ...c, unreadCount: 0 } : c))
-      );
-      setSelectedId(contactSlug);
-      return;
-    }
-
-    const resolved = resolveMessageContact(contactSlug);
-    if (!resolved) return;
-
-    setConversations((prev) => [
-      {
-        id: resolved.id,
-        name: resolved.name,
-        subtitle: resolved.subtitle,
-        isSupport: false,
-        avatarInitials: resolved.avatarInitials,
-        lastMessageTime: "",
-        unreadCount: 0,
-        messages: [],
-      },
-      ...prev,
-    ]);
-    setSelectedId(contactSlug);
+    const id = ensureConversation(contactSlug);
+    if (!id) return;
+    markRead(id);
+    setSelectedId(id);
+    setJustSentNotice(false);
+    if (prefillDraft) setDraft(prefillDraft);
     // Only re-run when the URL's contact param itself changes — not on
     // every conversations update (e.g. sending a message shouldn't
     // re-trigger this).
@@ -126,35 +116,28 @@ export default function MessagesView() {
   }, [contactSlug]);
 
   const selected = conversations.find((c) => c.id === selectedId) || null;
-  const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
 
   function handleSelect(id) {
     setSelectedId(id);
-    setConversations((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c))
-    );
+    setDraft("");
+    setJustSentNotice(false);
+    markRead(id);
   }
 
   function handleSend(e) {
     e.preventDefault();
-    const text = draft.trim();
-    if (!text || !selectedId) return;
-
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === selectedId
-          ? {
-              ...c,
-              messages: [
-                ...c.messages,
-                { id: c.messages.length + 1, sender: "me", text, time: "Just now" },
-              ],
-              lastMessageTime: "Just now",
-            }
-          : c
-      )
-    );
+    if (!selectedId) return;
+    // Buy Now's "notify the land owner immediately" happens right
+    // here — the moment the buyer actually sends the (editable)
+    // message, not when the modal was opened. This mockup has one
+    // signed-in identity playing both buyer and owner (see
+    // MessagesContext.jsx), so there's no separate owner session to
+    // push a notification to; this inline confirmation is the honest
+    // stand-in for that real-time notification within that constraint.
+    const isFirstMessageOnBuyNowThread = selected?.isBuyNowRequest && selected.messages.length === 0;
+    sendMessage(selectedId, draft);
     setDraft("");
+    if (isFirstMessageOnBuyNowThread) setJustSentNotice(true);
   }
 
   return (
@@ -205,7 +188,9 @@ export default function MessagesView() {
                       </div>
                       <div className="flex items-center justify-between gap-2">
                         <p className="truncate text-xs text-ink-500">
-                          {c.messages[c.messages.length - 1]?.text || "No messages yet"}
+                          {c.isBuyNowRequest && c.messages.length === 0
+                            ? `Buy Now request · ${c.landContext?.title ?? ""}`
+                            : c.messages[c.messages.length - 1]?.text || "No messages yet"}
                         </p>
                         {c.unreadCount > 0 && (
                           <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-forest-600 text-[10px] font-bold text-white">
@@ -241,16 +226,26 @@ export default function MessagesView() {
                   >
                     {selected.isSupport ? <ShieldIcon className="h-4 w-4" /> : selected.avatarInitials}
                   </span>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-ink-900">{selected.name}</p>
                     <p className="truncate text-xs text-ink-500">{selected.subtitle}</p>
                   </div>
+                  {selected.isBuyNowRequest && (
+                    <span className="flex shrink-0 items-center gap-1 rounded-full bg-forest-600 px-2.5 py-1 text-[10px] font-bold text-white">
+                      <BoltIcon className="h-3 w-3" />
+                      Buy Now
+                    </span>
+                  )}
                 </div>
+
+                {selected.landContext && <LandContextCard landContext={selected.landContext} />}
 
                 <div className="flex-1 space-y-3 overflow-y-auto px-4 py-5">
                   {selected.messages.length === 0 && (
                     <p className="pt-6 text-center text-xs text-ink-400">
-                      Say hello to start the conversation with {selected.name}.
+                      {selected.isBuyNowRequest
+                        ? "Review the message below and send it to reach out about this listing."
+                        : `Say hello to start the conversation with ${selected.name}.`}
                     </p>
                   )}
                   {selected.messages.map((m) => (
@@ -272,6 +267,13 @@ export default function MessagesView() {
                     </div>
                   ))}
                 </div>
+
+                {justSentNotice && (
+                  <div className="flex items-center gap-2 border-t border-forest-100 bg-forest-50/80 px-4 py-2.5 text-xs font-medium text-forest-700">
+                    <BoltIcon className="h-3.5 w-3.5" />
+                    Buy Now request sent — the land owner has been notified.
+                  </div>
+                )}
 
                 <form onSubmit={handleSend} className="flex items-center gap-2 border-t border-ink-900/10 bg-white p-3">
                   <label htmlFor="message-draft" className="sr-only">

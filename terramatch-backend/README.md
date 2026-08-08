@@ -45,7 +45,7 @@ mvn spring-boot:run
 ```
 
 The backend will start on:
-- http://localhost:8081
+- http://localhost:8082
 
 ## API notes
 - Public authentication endpoints:

@@ -1,21 +1,42 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import Button from "./Button";
+import SoldBadge from "./SoldBadge";
+import BuyNowModal from "./BuyNowModal";
 import { cn } from "../../utils/cn";
 import { LocationIcon } from "./Icons";
+import { useAuction } from "../../context/AuctionContext";
 
 export default function FeaturedLandCard({ land }) {
   const [isFavorited, setIsFavorited] = useState(false);
+  const [buyNowOpen, setBuyNowOpen] = useState(false);
+  const { isSold, isExpired } = useAuction();
   const { name, location, price, bids, image } = land;
+  const sold = isSold(land.slug);
+  const expired = !sold && isExpired(land.slug);
 
   return (
     <div className="flex gap-4 rounded-xl border border-ink-900/5 bg-white p-3 shadow-card">
-      <img
-        src={image}
-        alt={name}
-        loading="lazy"
-        className="h-24 w-28 shrink-0 rounded-lg bg-mist-100 object-cover"
-      />
+      <div className="relative shrink-0">
+        <img
+          src={image}
+          alt={name}
+          loading="lazy"
+          className={cn("h-24 w-28 rounded-lg bg-mist-100 object-cover", (sold || expired) && "opacity-70")}
+        />
+        {sold && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-ink-900/50">
+            <SoldBadge className="px-2 py-0.5 text-[10px]" />
+          </div>
+        )}
+        {expired && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-ink-900/50">
+            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">
+              Expired
+            </span>
+          </div>
+        )}
+      </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
@@ -48,18 +69,37 @@ export default function FeaturedLandCard({ land }) {
         <p className="mt-1.5 text-sm font-bold text-ink-900">{price}</p>
 
         <div className="mt-2 flex items-center justify-between gap-2">
-          <span className="text-xs text-ink-500">{bids} Bids</span>
-          <Button
-            as={Link}
-            to={`/explore-land/${land.slug}`}
-            variant="outline-dark"
-            size="sm"
-            className="px-3 py-1.5 text-xs"
-          >
-            View Details
-          </Button>
+          <span className="text-xs text-ink-500">
+            {sold ? "Sold" : expired ? "Expired" : `${bids} Bids`}
+          </span>
+          <div className="flex shrink-0 gap-1.5">
+            {!sold && !expired && land.buyNowPrice && (
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                className="px-3 py-1.5 text-xs"
+                onClick={() => setBuyNowOpen(true)}
+              >
+                Buy Now
+              </Button>
+            )}
+            <Button
+              as={Link}
+              to={`/explore-land/${land.slug}`}
+              variant="outline-dark"
+              size="sm"
+              className="px-3 py-1.5 text-xs"
+            >
+              View Details
+            </Button>
+          </div>
         </div>
       </div>
+
+      {land.buyNowPrice && !sold && !expired && (
+        <BuyNowModal open={buyNowOpen} onClose={() => setBuyNowOpen(false)} land={land} />
+      )}
     </div>
   );
 }

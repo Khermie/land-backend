@@ -2,8 +2,11 @@ import { Link } from "react-router-dom";
 import { FOOTER_COLUMNS } from "../../constants/navigation";
 import Button from "../common/Button";
 import Logo from "../common/Logo";
+import { useGetStartedTarget } from "../../context/AuthContext";
 
 export default function Footer() {
+  const getStartedTarget = useGetStartedTarget();
+
   return (
     <footer className="relative overflow-hidden">
       {/*
@@ -37,7 +40,7 @@ export default function Footer() {
             and transparent bidding.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Button as={Link} to="/get-started" variant="white" size="sm">
+            <Button as={Link} to={getStartedTarget} variant="white" size="sm">
               Get Started
             </Button>
             <Button as={Link} to="/explore-land" variant="outline" size="sm">

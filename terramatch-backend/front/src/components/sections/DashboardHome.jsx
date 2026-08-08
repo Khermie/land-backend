@@ -22,6 +22,24 @@ function ArrowRightIcon({ className }) {
   );
 }
 
+function PlusCircleIcon({ className }) {
+  return (
+    <svg viewBox="0 0 24 24" className={cn("fill-none stroke-current", className)} aria-hidden="true">
+      <circle cx="12" cy="12" r="9.5" strokeWidth="1.6" />
+      <path d="M12 8v8M8 12h8" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function MapPinPlusIcon({ className }) {
+  return (
+    <svg viewBox="0 0 24 24" className={cn("fill-none stroke-current", className)} aria-hidden="true">
+      <path d="M12 21s-7-6.5-7-11.5A7 7 0 0119 9.5C19 14.5 12 21 12 21z" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M9.5 9.5h5M12 7v5" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 const ROLE_CARDS = [
   {
     id: "land-owner",
@@ -98,6 +116,18 @@ export default function DashboardHome() {
 
             <h1 className="mt-6 text-2xl font-bold">Welcome, Kwame</h1>
             <p className="mt-1 text-sm text-white/80">What would you like to do today?</p>
+          </div>
+
+          {/* Quick actions */}
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <Button as={Link} to="/post-a-project" variant="primary" size="md" className="justify-center">
+              <PlusCircleIcon className="h-4 w-4" />
+              Post a Project
+            </Button>
+            <Button as={Link} to="/list-your-land" variant="outline" size="md" className="justify-center">
+              <MapPinPlusIcon className="h-4 w-4" />
+              List Your Land
+            </Button>
           </div>
 
           {/* Role cards */}

@@ -1,4 +1,4 @@
-import { unsplashUrl, LAND_PHOTO_IDS } from "./stockImages";
+import { unsplashUrl, LAND_PHOTO_IDS, CONTRACTOR_PHOTO_IDS } from "./stockImages";
 
 // Category filter pills on the Explore Land page.
 export const LAND_CATEGORIES = [
@@ -15,6 +15,13 @@ export const LAND_TYPE_OPTIONS = LAND_CATEGORIES.filter((c) => c !== "All Land")
 // `image`: real, properly-licensed photos (see constants/stockImages.js)
 // — only 4 distinct land photos were sourced, so 2 of the 6 entries
 // below intentionally repeat one rather than going unillustrated.
+// `ownerSlug`: every listing here belongs to Kwame Owusu (see
+// constants/landOwners.js — LAND_OWNERS["kwame-owusu"].listingSlugs
+// already lists all of these) — added directly on each entry so any
+// card or flow that only has the bare FEATURED_LANDS object (not the
+// fuller LAND_DETAILS record) can still resolve who to contact, e.g.
+// the Buy Now flow starting a conversation with the right owner
+// straight from a listing card (see MessagesContext.jsx).
 export const FEATURED_LANDS = [
   {
     slug: "east-legon-hills",
@@ -25,7 +32,14 @@ export const FEATURED_LANDS = [
     region: "Accra",
     category: "Residential",
     bids: 12,
+    ownerSlug: "kwame-owusu",
     image: unsplashUrl(LAND_PHOTO_IDS.greenCoveredLand),
+    // Buy Now lets a buyer skip the auction and purchase immediately
+    // at this fixed price. Only set on listings where the owner has
+    // opted in — the auction badge, bidding, and Buy Now button are
+    // driven entirely by whether this field is present (see
+    // AuctionContext.buyNow / LandDetailContent / listing cards).
+    buyNowPrice: 185000,
   },
   {
     slug: "oyarifa-extension",
@@ -36,7 +50,9 @@ export const FEATURED_LANDS = [
     region: "Accra",
     category: "Agricultural",
     bids: 8,
+    ownerSlug: "kwame-owusu",
     image: unsplashUrl(LAND_PHOTO_IDS.greenPlainField),
+    buyNowPrice: 165000,
   },
   {
     slug: "adenta-hills",
@@ -47,7 +63,11 @@ export const FEATURED_LANDS = [
     region: "Accra",
     category: "Residential",
     bids: 15,
+    ownerSlug: "kwame-owusu",
     image: unsplashUrl(LAND_PHOTO_IDS.largeAreaOfLand),
+    // No buyNowPrice — this owner has chosen auction-only, same as
+    // Tema Community 25 and Kasoa Junction below. Demonstrates both
+    // states coexisting: Buy Now only appears where it's configured.
   },
   {
     slug: "tema-community-25",
@@ -58,6 +78,7 @@ export const FEATURED_LANDS = [
     region: "Tema",
     category: "Commercial",
     bids: 10,
+    ownerSlug: "kwame-owusu",
     image: unsplashUrl(LAND_PHOTO_IDS.farmlandWithMountains),
   },
   {
@@ -69,7 +90,9 @@ export const FEATURED_LANDS = [
     region: "Amasaman",
     category: "Industrial",
     bids: 6,
+    ownerSlug: "kwame-owusu",
     image: unsplashUrl(LAND_PHOTO_IDS.greenCoveredLand),
+    buyNowPrice: 142000,
   },
   // Matches the 4th listing shown in the Home page's bidding preview
   // (LandBiddingPreview.jsx) — added so its "Place Bid" button has a
@@ -84,9 +107,54 @@ export const FEATURED_LANDS = [
     region: "Kasoa",
     category: "Residential",
     bids: 9,
+    ownerSlug: "kwame-owusu",
     image: unsplashUrl(LAND_PHOTO_IDS.greenPlainField),
   },
 ];
+
+// Multi-image gallery for the Land Detail page, keyed by slug. Built
+// only from photo IDs already verified elsewhere in this project
+// (each land's own card photo first, then two more verified land/
+// terrain photos for variety) — see the note in stockImages.js on why
+// no new, unverified IDs were introduced. Falls back to a single-photo
+// gallery (just the card image) for any slug not listed here.
+export const LAND_GALLERIES = {
+  "east-legon-hills": [
+    unsplashUrl(LAND_PHOTO_IDS.greenCoveredLand, { w: 1200 }),
+    unsplashUrl(LAND_PHOTO_IDS.largeAreaOfLand, { w: 1200 }),
+    unsplashUrl(CONTRACTOR_PHOTO_IDS.terrainRender, { w: 1200 }),
+    unsplashUrl(CONTRACTOR_PHOTO_IDS.mapAerial, { w: 1200 }),
+  ],
+  "oyarifa-extension": [
+    unsplashUrl(LAND_PHOTO_IDS.greenPlainField, { w: 1200 }),
+    unsplashUrl(LAND_PHOTO_IDS.farmlandWithMountains, { w: 1200 }),
+    unsplashUrl(CONTRACTOR_PHOTO_IDS.terrainRender, { w: 1200 }),
+  ],
+  "adenta-hills": [
+    unsplashUrl(LAND_PHOTO_IDS.largeAreaOfLand, { w: 1200 }),
+    unsplashUrl(LAND_PHOTO_IDS.greenCoveredLand, { w: 1200 }),
+    unsplashUrl(CONTRACTOR_PHOTO_IDS.mapAerial, { w: 1200 }),
+  ],
+  "tema-community-25": [
+    unsplashUrl(LAND_PHOTO_IDS.farmlandWithMountains, { w: 1200 }),
+    unsplashUrl(LAND_PHOTO_IDS.greenPlainField, { w: 1200 }),
+    unsplashUrl(CONTRACTOR_PHOTO_IDS.terrainRender, { w: 1200 }),
+  ],
+  "amasaman-estate": [
+    unsplashUrl(LAND_PHOTO_IDS.greenCoveredLand, { w: 1200 }),
+    unsplashUrl(LAND_PHOTO_IDS.farmlandWithMountains, { w: 1200 }),
+    unsplashUrl(CONTRACTOR_PHOTO_IDS.mapAerial, { w: 1200 }),
+  ],
+  "kasoa-junction": [
+    unsplashUrl(LAND_PHOTO_IDS.greenPlainField, { w: 1200 }),
+    unsplashUrl(LAND_PHOTO_IDS.largeAreaOfLand, { w: 1200 }),
+    unsplashUrl(CONTRACTOR_PHOTO_IDS.terrainRender, { w: 1200 }),
+  ],
+};
+
+export function getLandGallery(land) {
+  return LAND_GALLERIES[land.slug] ?? [land.image];
+}
 
 // Derived option lists for the search/filter dropdowns.
 export const LAND_REGIONS = [

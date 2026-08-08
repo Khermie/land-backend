@@ -22,6 +22,14 @@ export const LAND_PHOTO_IDS = {
   farmlandWithMountains: "photo-1633212209509-80d72254399c",
 };
 
+// Multi-image gallery source for the Land Detail page. Built entirely
+// from IDs already verified elsewhere in this file (LAND_PHOTO_IDS +
+// CONTRACTOR_PHOTO_IDS.mapAerial/terrainRender) rather than new,
+// unverified ones — this sandbox has no network access to Unsplash to
+// confirm a brand-new ID actually resolves, so reusing known-good IDs
+// is the safe choice over risking a broken image. Order is per-slug in
+// lands.js (LAND_GALLERIES) so each listing shows a distinct sequence.
+
 // Construction/trades photography — used for CONTRACTORS card images.
 export const CONTRACTOR_PHOTO_IDS = {
   constructionWorkersGroup: "photo-1653280662710-1cac52cde6d7",

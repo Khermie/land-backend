@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import Button from "../common/Button";
+import SoldBadge from "../common/SoldBadge";
+import BuyNowModal from "../common/BuyNowModal";
 import { unsplashUrl, CONTRACTOR_PHOTO_IDS } from "../../constants/stockImages";
 import { FEATURED_LANDS } from "../../constants/lands";
+import { useAuction } from "../../context/AuctionContext";
 import { cn } from "../../utils/cn";
 
 // PLACEHOLDER DATA read directly from the source screenshot. Slugs added
@@ -16,6 +19,74 @@ const LISTINGS = [
   { slug: "amasaman-estate", name: "Amasaman Estate", location: "Amasaman, Greater Accra", price: "GH₵105 / sq ft", bids: 6 },
   { slug: "kasoa-junction", name: "Kasoa Junction", location: "Central Region", price: "GH₵100 / sq ft", bids: 9 },
 ];
+
+function BiddingListingCard({ land }) {
+  const [buyNowOpen, setBuyNowOpen] = useState(false);
+  const { isSold, isExpired } = useAuction();
+  const fullLand = FEATURED_LANDS.find((f) => f.slug === land.slug);
+  const sold = isSold(land.slug);
+  const expired = !sold && isExpired(land.slug);
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-ink-900/5 bg-white shadow-card">
+      <div className="relative">
+        {/* Same photo this land shows on its detail page / FeaturedLandCard */}
+        <img
+          src={fullLand?.image}
+          alt={land.name}
+          loading="lazy"
+          className={cn("aspect-[16/9] w-full bg-mist-100 object-cover", (sold || expired) && "opacity-70")}
+        />
+        {sold && (
+          <div className="absolute inset-0 flex items-center justify-center bg-ink-900/40">
+            <SoldBadge />
+          </div>
+        )}
+        {expired && (
+          <div className="absolute inset-0 flex items-center justify-center bg-ink-900/40">
+            <span className="rounded-full bg-amber-500 px-3 py-1 text-xs font-bold text-white">Expired</span>
+          </div>
+        )}
+      </div>
+      <div className="p-3.5">
+        <h3 className="font-semibold text-ink-900">{land.name}</h3>
+        <p className="text-sm text-ink-500">{land.location}</p>
+        <p className="mt-1.5 text-sm font-bold text-ink-900">{land.price}</p>
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <span className="text-xs text-ink-500">
+            {sold ? "Sold" : expired ? "Expired" : `${land.bids} Bids`}
+          </span>
+          <div className="flex shrink-0 gap-1.5">
+            {!sold && !expired && fullLand?.buyNowPrice && (
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                className="px-3 py-1.5 text-xs"
+                onClick={() => setBuyNowOpen(true)}
+              >
+                Buy Now
+              </Button>
+            )}
+            <Button
+              as={Link}
+              to={`/explore-land/${land.slug}`}
+              variant="outline-dark"
+              size="sm"
+              className="px-3 py-1.5 text-xs"
+            >
+              {sold || expired ? "View Details" : "Place Bid"}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {fullLand?.buyNowPrice && !sold && !expired && (
+        <BuyNowModal open={buyNowOpen} onClose={() => setBuyNowOpen(false)} land={fullLand} />
+      )}
+    </div>
+  );
+}
 
 export default function LandBiddingPreview() {
   const [view, setView] = useState("map"); // "map" | "list"
@@ -74,39 +145,7 @@ export default function LandBiddingPreview() {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {LISTINGS.map((land) => (
-              <div
-                key={land.slug}
-                className="overflow-hidden rounded-xl border border-ink-900/5 bg-white shadow-card"
-              >
-                {/* Same photo this land shows on its detail page / FeaturedLandCard */}
-                <img
-                  src={FEATURED_LANDS.find((f) => f.slug === land.slug)?.image}
-                  alt={land.name}
-                  loading="lazy"
-                  className="aspect-[16/9] w-full bg-mist-100 object-cover"
-                />
-                <div className="p-3.5">
-                  <h3 className="font-semibold text-ink-900">{land.name}</h3>
-                  <p className="text-sm text-ink-500">{land.location}</p>
-                  <p className="mt-1.5 text-sm font-bold text-ink-900">
-                    {land.price}
-                  </p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-xs text-ink-500">
-                      {land.bids} Bids
-                    </span>
-                    <Button
-                      as={Link}
-                      to={`/explore-land/${land.slug}`}
-                      variant="outline-dark"
-                      size="sm"
-                      className="px-3 py-1.5 text-xs"
-                    >
-                      Place Bid
-                    </Button>
-                  </div>
-                </div>
-              </div>
+              <BiddingListingCard key={land.slug} land={land} />
             ))}
           </div>
         </div>

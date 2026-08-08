@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import Button from "../common/Button";
 import Badge from "../common/Badge";
+import { useGetStartedTarget } from "../../context/AuthContext";
 import { cn } from "../../utils/cn";
 
 function ShieldIcon({ className }) {
@@ -104,6 +105,8 @@ const FEATURES = [
  * linking to the real page that demonstrates it.
  */
 export default function FeaturesContent() {
+  const getStartedTarget = useGetStartedTarget();
+
   return (
     <div>
       <section className="bg-forest-50/60 py-16 sm:py-20">
@@ -158,7 +161,7 @@ export default function FeaturesContent() {
               Create an account in a few minutes — no credit card required.
             </p>
           </div>
-          <Button as={Link} to="/get-started" variant="white" size="lg" className="shrink-0">
+          <Button as={Link} to={getStartedTarget} variant="white" size="lg" className="shrink-0">
             Get Started
           </Button>
         </div>

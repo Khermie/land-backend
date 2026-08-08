@@ -4,7 +4,14 @@ import Button from "../common/Button";
 import { ImageSkeleton } from "../common/Skeleton";
 import NeedHelpCard from "../common/NeedHelpCard";
 import PlatformTrustBar from "../common/PlatformTrustBar";
+import BuyNowModal from "../common/BuyNowModal";
+import SoldBadge from "../common/SoldBadge";
+import StarRating from "../common/StarRating";
 import { formatGHS } from "../../constants/landDetails";
+import { getLandGallery, FEATURED_LANDS } from "../../constants/lands";
+import { LAND_OWNERS } from "../../constants/landOwners";
+import { unsplashUrl, KWAME_AVATAR_ID } from "../../constants/stockImages";
+import { useAuction } from "../../context/AuctionContext";
 import { cn } from "../../utils/cn";
 
 /* ================================================================ */
@@ -184,28 +191,31 @@ function pad(n) {
 }
 
 /**
- * Ticks down from a target computed once at mount (now + durationMs).
- * The screenshot's fixed end date (May 22, 2025) has already passed
- * relative to today, so the target is computed live instead — this
- * keeps the countdown genuinely functional rather than frozen/expired.
+ * Ticks down to a fixed target timestamp (AuctionContext's
+ * auctionEndsAt, set once when the auction record is first seeded —
+ * see context/AuctionContext.jsx). Reading from a stored target
+ * rather than "now + durationMs" means refreshing the page or
+ * re-mounting this component doesn't silently push the deadline back
+ * — the countdown reflects when the auction actually ends, the same
+ * way a real end time would be a fixed value in a database.
  */
-function useCountdown(durationMs) {
-  const [target] = useState(() => Date.now() + durationMs);
-  const [remaining, setRemaining] = useState(() => Math.max(0, target - Date.now()));
+function useCountdown(targetTimestamp) {
+  const [remaining, setRemaining] = useState(() => Math.max(0, targetTimestamp - Date.now()));
 
   useEffect(() => {
+    setRemaining(Math.max(0, targetTimestamp - Date.now()));
     const id = setInterval(() => {
-      setRemaining(Math.max(0, target - Date.now()));
+      setRemaining(Math.max(0, targetTimestamp - Date.now()));
     }, 1000);
     return () => clearInterval(id);
-  }, [target]);
+  }, [targetTimestamp]);
 
   const days = Math.floor(remaining / 86400000);
   const hours = Math.floor((remaining % 86400000) / 3600000);
   const mins = Math.floor((remaining % 3600000) / 60000);
   const secs = Math.floor((remaining % 60000) / 1000);
 
-  const endDate = new Date(target);
+  const endDate = new Date(targetTimestamp);
   const endDateLabel = endDate.toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
@@ -216,7 +226,7 @@ function useCountdown(durationMs) {
     minute: "2-digit",
   });
 
-  return { days, hours, mins, secs, endDateLabel, endTimeLabel };
+  return { days, hours, mins, secs, endDateLabel, endTimeLabel, hasEnded: remaining <= 0 };
 }
 
 /* ================================================================ */
@@ -289,10 +299,10 @@ function TopBar({ land, detail }) {
 /* Gallery                                                            */
 /* ================================================================ */
 
-function Gallery({ detail }) {
+function Gallery({ land, detail, sold }) {
   const [active, setActive] = useState(0);
   const stripRef = useRef(null);
-  const thumbnails = Array.from({ length: detail.photoCount });
+  const photos = getLandGallery(land);
 
   function scrollStrip() {
     stripRef.current?.scrollBy({ left: 160, behavior: "smooth" });
@@ -300,46 +310,60 @@ function Gallery({ detail }) {
 
   return (
     <div>
-      {/*
-        PLACEHOLDER ASSET: aerial land photos (main + thumbnails).
-        Replace with real photos at
-        /src/assets/images/land/east-legon-hills/{1..N}.jpg and swap
-        each ImageSkeleton below for an <img>.
-      */}
-      <div className="relative">
+      <div className="relative overflow-hidden rounded-xl">
         <span className="absolute left-4 top-4 z-10 rounded-md bg-forest-600 px-3 py-1 text-xs font-bold text-white">
           {detail.badge}
         </span>
-        <ImageSkeleton className="aspect-[16/10] w-full" />
+        {sold && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-ink-900/50">
+            <SoldBadge className="px-4 py-2 text-sm" />
+          </div>
+        )}
+        <img
+          key={photos[active]}
+          src={photos[active]}
+          alt={`${land.name} — photo ${active + 1} of ${photos.length}`}
+          className="aspect-[16/10] w-full bg-mist-100 object-cover"
+        />
       </div>
 
-      <div className="relative mt-3">
-        <div ref={stripRef} className="flex gap-2 overflow-x-auto pb-1">
-          {thumbnails.map((_, i) => (
+      {photos.length > 1 && (
+        <div className="relative mt-3">
+          <div ref={stripRef} className="flex gap-2 overflow-x-auto pb-1">
+            {photos.map((photo, i) => (
+              <button
+                key={photo + i}
+                type="button"
+                onClick={() => setActive(i)}
+                aria-label={`Show photo ${i + 1}`}
+                aria-pressed={active === i}
+                className={cn(
+                  "h-16 w-20 shrink-0 overflow-hidden rounded-lg border-2 transition-colors",
+                  active === i ? "border-forest-600" : "border-transparent"
+                )}
+              >
+                <img
+                  src={photo}
+                  alt=""
+                  aria-hidden="true"
+                  loading="lazy"
+                  className="h-full w-full object-cover"
+                />
+              </button>
+            ))}
+          </div>
+          {photos.length > 4 && (
             <button
-              key={i}
               type="button"
-              onClick={() => setActive(i)}
-              aria-label={`Show photo ${i + 1}`}
-              aria-pressed={active === i}
-              className={cn(
-                "h-16 w-20 shrink-0 overflow-hidden rounded-lg border-2 transition-colors",
-                active === i ? "border-forest-600" : "border-transparent"
-              )}
+              onClick={scrollStrip}
+              aria-label="Scroll thumbnails"
+              className="absolute right-0 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full border border-ink-900/10 bg-white shadow-sm"
             >
-              <ImageSkeleton className="h-full w-full rounded-none" />
+              <ChevronRightIcon className="text-ink-700" />
             </button>
-          ))}
+          )}
         </div>
-        <button
-          type="button"
-          onClick={scrollStrip}
-          aria-label="Scroll thumbnails"
-          className="absolute right-0 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full border border-ink-900/10 bg-white shadow-sm"
-        >
-          <ChevronRightIcon className="text-ink-700" />
-        </button>
-      </div>
+      )}
     </div>
   );
 }
@@ -591,8 +615,50 @@ function TabsSection({ detail }) {
 /* Right sidebar: countdown, bidding, history, help                  */
 /* ================================================================ */
 
-function AuctionCountdown({ detail }) {
-  const { days, hours, mins, secs, endDateLabel, endTimeLabel } = useCountdown(detail.auctionDurationMs);
+function AuctionCountdown({ land, auctionEndsAt, sold, soldVia, expired }) {
+  const { days, hours, mins, secs, endDateLabel, endTimeLabel, hasEnded } = useCountdown(auctionEndsAt);
+  const { markExpired } = useAuction();
+
+  // The moment the local countdown reaches zero, tell AuctionContext
+  // so the record's status durably becomes "expired" — otherwise it
+  // would only ever look expired while someone happens to have this
+  // page open with a live countdown running.
+  useEffect(() => {
+    if (hasEnded && !sold && !expired) {
+      markExpired(land.slug);
+    }
+  }, [hasEnded, sold, expired, land.slug, markExpired]);
+
+  if (sold) {
+    return (
+      <div className="rounded-2xl border border-ink-900/10 bg-ink-900/5 p-5">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-ink-700">
+          <ClockIcon />
+          Auction Ended
+        </p>
+        <p className="mt-2 text-sm text-ink-700">
+          {soldVia === "buyNow"
+            ? "This listing was purchased via Buy Now and is no longer accepting bids."
+            : "This auction has closed."}
+        </p>
+      </div>
+    );
+  }
+
+  if (expired || hasEnded) {
+    return (
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-amber-800">
+          <ClockIcon />
+          Auction Expired
+        </p>
+        <p className="mt-2 text-sm text-amber-800">
+          Bidding closed without a winning bid or Buy Now purchase. Reach out to the seller directly
+          if you're still interested.
+        </p>
+      </div>
+    );
+  }
 
   const units = [
     { label: "Days", value: days },
@@ -622,7 +688,19 @@ function AuctionCountdown({ detail }) {
   );
 }
 
-function BidPanel({ detail, currentBid, minNextBid, onPlaceBid }) {
+function BidPanel({
+  land,
+  detail,
+  currentBid,
+  minNextBid,
+  bidIncrement,
+  onPlaceBid,
+  sold,
+  soldVia,
+  soldAmount,
+  expired,
+  onOpenBuyNow,
+}) {
   const [showForm, setShowForm] = useState(false);
   const [amount, setAmount] = useState(String(minNextBid));
   const [error, setError] = useState("");
@@ -638,13 +716,86 @@ function BidPanel({ detail, currentBid, minNextBid, onPlaceBid }) {
       setError(`Enter at least ${formatGHS(minNextBid)}`);
       return;
     }
-    onPlaceBid(value);
+    const result = onPlaceBid(value);
+    if (!result.ok) {
+      if (result.reason === "sold") {
+        setError("This item has already been sold and is no longer accepting bids.");
+      } else if (result.reason === "expired") {
+        setError("This auction has expired and is no longer accepting bids.");
+      } else {
+        setError(`Enter at least ${formatGHS(minNextBid)}`);
+      }
+      return;
+    }
     setError("");
     setShowForm(false);
   }
 
+  if (expired) {
+    return (
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+        <p className="text-sm text-amber-800">Auction Expired</p>
+        <p className="mt-1 text-2xl font-extrabold text-ink-900">{formatGHS(currentBid?.amount ?? 0)}</p>
+        <p className="mt-1 text-xs text-amber-700">Highest bid reached — no winner declared</p>
+        <p className="mt-3 text-sm text-ink-700">
+          Time ran out before this listing sold. Bidding and Buy Now are both closed, but you can still
+          reach out to the seller directly.
+        </p>
+
+        <Button
+          as={Link}
+          to={`/land-owner/${detail.ownerSlug}`}
+          variant="outline-dark"
+          size="md"
+          className="mt-4 w-full"
+        >
+          Contact Land Owner
+        </Button>
+      </div>
+    );
+  }
+
+  if (sold) {
+    return (
+      <div className="rounded-2xl border border-ink-900/10 bg-white p-5">
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-ink-500">{soldVia === "buyNow" ? "Sold via Buy Now" : "Sold"}</p>
+          <SoldBadge />
+        </div>
+        <p className="mt-1 text-2xl font-extrabold text-ink-900">{formatGHS(soldAmount ?? currentBid.amount)}</p>
+        <p className="mt-3 text-sm text-ink-700">
+          This land is no longer available. Bidding has closed and Buy Now is disabled for this listing.
+        </p>
+
+        <Button
+          as={Link}
+          to={`/land-owner/${detail.ownerSlug}`}
+          variant="outline-dark"
+          size="md"
+          className="mt-4 w-full"
+        >
+          Contact Land Owner
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-2xl border border-ink-900/10 bg-white p-5">
+      {land.buyNowPrice && (
+        <div className="mb-4 rounded-xl border border-forest-200 bg-forest-50/60 p-4">
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-forest-700">
+            <BoltIcon className="h-3.5 w-3.5" />
+            Buy Now Available
+          </p>
+          <p className="mt-1 text-xl font-extrabold text-forest-700">{formatGHS(land.buyNowPrice)}</p>
+          <p className="mt-0.5 text-xs text-ink-500">Skip the auction — purchase this land instantly.</p>
+          <Button type="button" variant="primary" size="md" className="mt-3 w-full" onClick={onOpenBuyNow}>
+            Buy Now
+          </Button>
+        </div>
+      )}
+
       <p className="text-sm text-ink-500">Current Highest Bid</p>
       <p className="mt-1 text-2xl font-extrabold text-forest-700">{formatGHS(currentBid.amount)}</p>
       <p className="mt-1 flex items-center gap-1.5 text-xs text-ink-500">
@@ -665,6 +816,9 @@ function BidPanel({ detail, currentBid, minNextBid, onPlaceBid }) {
         </span>
         <span className="font-semibold text-ink-900">{formatGHS(minNextBid)}</span>
       </div>
+      <p className="mt-1 text-xs text-ink-500">
+        Bids must increase by at least {formatGHS(bidIncrement)} each time.
+      </p>
 
       {showForm ? (
         <form onSubmit={handleSubmit} className="mt-4 space-y-2">
@@ -701,7 +855,7 @@ function BidPanel({ detail, currentBid, minNextBid, onPlaceBid }) {
       ) : (
         <Button
           type="button"
-          variant="primary"
+          variant="outline-dark"
           size="md"
           className="mt-4 w-full"
           onClick={() => setShowForm(true)}
@@ -758,42 +912,166 @@ function BidHistoryCard({ bidHistory }) {
 }
 
 /* ================================================================ */
+/* Seller info                                                       */
+/* ================================================================ */
+
+function SellerInfoCard({ detail }) {
+  const owner = LAND_OWNERS[detail.ownerSlug];
+  if (!owner) return null;
+
+  return (
+    <div className="rounded-2xl border border-ink-900/10 bg-white p-5">
+      <p className="text-sm font-semibold text-ink-900">Seller Information</p>
+      <Link
+        to={`/land-owner/${detail.ownerSlug}`}
+        className="mt-3 flex items-center gap-3 rounded-xl border border-ink-900/5 bg-mist-50 p-3 hover:bg-mist-100"
+      >
+        <img
+          src={unsplashUrl(KWAME_AVATAR_ID, { w: 96 })}
+          alt=""
+          className="h-11 w-11 shrink-0 rounded-full object-cover"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-ink-900">
+            {owner.name}
+            {owner.verified && (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-forest-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                <VerifiedIcon /> Verified
+              </span>
+            )}
+          </p>
+          <div className="mt-0.5 flex items-center gap-1 text-xs text-ink-500">
+            <StarRating value={owner.rating} />
+            <span>
+              {owner.rating} ({owner.reviewCount} reviews)
+            </span>
+          </div>
+        </div>
+      </Link>
+
+      <dl className="mt-3 grid grid-cols-2 gap-y-2 text-xs">
+        <div>
+          <dt className="text-ink-500">Response Time</dt>
+          <dd className="font-semibold text-ink-900">
+            {owner.performance?.find((p) => p.label === "Avg. Response Time")?.value ?? "—"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-ink-500">Total Listings</dt>
+          <dd className="font-semibold text-ink-900">{owner.totalListings}</dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
+/* ================================================================ */
+/* Similar listings                                                  */
+/* ================================================================ */
+
+function SimilarListings({ currentSlug, category }) {
+  const { isSold } = useAuction();
+
+  const matches = FEATURED_LANDS.filter((l) => l.slug !== currentSlug && l.category === category).slice(0, 3);
+
+  // Category can legitimately have no other matches (e.g. a one-off
+  // Industrial listing) — fall back to any other listings rather than
+  // showing an empty section.
+  const fallback = FEATURED_LANDS.filter((l) => l.slug !== currentSlug).slice(0, 3);
+  const listings = matches.length > 0 ? matches : fallback;
+
+  if (listings.length === 0) return null;
+
+  return (
+    <div className="mt-12">
+      <h2 className="text-lg font-bold text-ink-900">Similar Listings</h2>
+      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        {listings.map((land) => {
+          const sold = isSold(land.slug);
+          return (
+            <Link
+              key={land.slug}
+              to={`/explore-land/${land.slug}`}
+              className="overflow-hidden rounded-xl border border-ink-900/10 bg-white shadow-card transition-shadow hover:shadow-floating"
+            >
+              <div className="relative">
+                <img
+                  src={land.image}
+                  alt={land.name}
+                  loading="lazy"
+                  className={cn("aspect-[16/10] w-full bg-mist-100 object-cover", sold && "opacity-70")}
+                />
+                {sold && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-ink-900/40">
+                    <SoldBadge />
+                  </div>
+                )}
+              </div>
+              <div className="p-3.5">
+                <p className="truncate text-sm font-semibold text-ink-900">{land.name}</p>
+                <p className="truncate text-xs text-ink-500">{land.location}</p>
+                <div className="mt-1.5 flex items-center justify-between">
+                  <p className="text-sm font-bold text-ink-900">{land.price}</p>
+                  {land.buyNowPrice && !sold && (
+                    <span className="rounded-full bg-forest-50 px-2 py-0.5 text-[10px] font-semibold text-forest-700">
+                      Buy Now
+                    </span>
+                  )}
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================ */
 /* Page section                                                      */
 /* ================================================================ */
 
 export default function LandDetailContent({ land, detail }) {
-  const [bidHistory, setBidHistory] = useState(detail.bidHistory);
-  const [currentBid, setCurrentBid] = useState({
-    bidder: detail.bidHistory[0].bidder,
-    amount: detail.bidHistory[0].amount,
-    verified: Boolean(detail.bidHistory[0].verified),
-  });
-  const [minNextBid, setMinNextBid] = useState(detail.minimumNextBid);
+  const { getRecord, placeBid, isExpired } = useAuction();
+  const [buyNowOpen, setBuyNowOpen] = useState(false);
+
+  // AuctionContext is the single source of truth for bid/sold state —
+  // reading it here (rather than keeping a local copy, as before)
+  // means a Buy Now purchase made from this same page, a listing
+  // card, or another tab in this session is reflected immediately,
+  // and a bid can never be placed after the item is already sold.
+  const record = getRecord(land.slug);
+  const sold = record.status === "sold";
+  const expired = !sold && isExpired(land.slug);
 
   function handlePlaceBid(amount) {
-    const newBid = {
-      bidder: "You",
-      amount,
-      dateLabel: new Date().toLocaleString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      }),
-    };
-    setBidHistory((prev) => [newBid, ...prev]);
-    setCurrentBid({ bidder: "You", amount, verified: false });
-    setMinNextBid(amount + detail.bidIncrement);
+    return placeBid(land.slug, amount, "You");
   }
 
   return (
     <section className="container-page py-8 sm:py-12">
       <TopBar land={land} detail={detail} />
 
+      {sold && (
+        <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-ink-900/10 bg-mist-50 px-4 py-3 text-sm text-ink-700">
+          <SoldBadge />
+          <span>
+            {record.soldVia === "buyNow"
+              ? "This land was purchased via Buy Now and is no longer available."
+              : "This auction has ended and the land is no longer available."}
+          </span>
+        </div>
+      )}
+      {expired && (
+        <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <ClockIcon />
+          <span>This auction has expired without a sale. Bidding and Buy Now are both closed.</span>
+        </div>
+      )}
+
       <div className="mt-6 grid gap-8 lg:grid-cols-[1.6fr_1fr] lg:items-start">
         <div className="space-y-10">
-          <Gallery detail={detail} />
+          <Gallery land={land} detail={detail} sold={sold || expired} />
           <AboutSection detail={detail} />
           <LocationSection detail={detail} />
           <DocumentsSection detail={detail} />
@@ -802,14 +1080,39 @@ export default function LandDetailContent({ land, detail }) {
 
         <div className="space-y-6">
           <TitleBlock land={land} detail={detail} />
-          <AuctionCountdown detail={detail} />
-          <BidPanel detail={detail} currentBid={currentBid} minNextBid={minNextBid} onPlaceBid={handlePlaceBid} />
-          <BidHistoryCard bidHistory={bidHistory} />
+          <AuctionCountdown
+            land={land}
+            auctionEndsAt={record.auctionEndsAt}
+            sold={sold}
+            soldVia={record.soldVia}
+            expired={expired}
+          />
+          <BidPanel
+            land={land}
+            detail={detail}
+            currentBid={record.currentBid}
+            minNextBid={record.minNextBid}
+            bidIncrement={record.bidIncrement}
+            onPlaceBid={handlePlaceBid}
+            sold={sold}
+            soldVia={record.soldVia}
+            soldAmount={record.soldAmount}
+            expired={expired}
+            onOpenBuyNow={() => setBuyNowOpen(true)}
+          />
+          <SellerInfoCard detail={detail} />
+          <BidHistoryCard bidHistory={record.bidHistory} />
           <NeedHelpCard />
         </div>
       </div>
 
+      <SimilarListings currentSlug={land.slug} category={land.category} />
+
       <PlatformTrustBar className="mt-4" />
+
+      {land.buyNowPrice && !sold && !expired && (
+        <BuyNowModal open={buyNowOpen} onClose={() => setBuyNowOpen(false)} land={land} />
+      )}
     </section>
   );
 }

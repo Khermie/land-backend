@@ -61,3 +61,24 @@ export function useAuth() {
   }
   return ctx;
 }
+
+/**
+ * Every "Get Started" / "Post a Project" / "List Your Land" CTA across
+ * the marketing site (CustomProjectBanner, ListLandBanner, pricing
+ * cards, Navbar, footer, About/Features pages) is meant for a visitor
+ * who hasn't signed up yet — they all point to /get-started. But nothing
+ * checked whether the visitor was already signed in, so a logged-in
+ * user clicking one of these (e.g. "Post a Project" from a bidding
+ * page) got sent into the signup wizard again, which looks identical
+ * to being logged out.
+ *
+ * This hook is the single place that decides where a "Get Started"-
+ * style CTA should actually go: the signup flow for a guest, or
+ * straight to their Dashboard if they're already signed in. Every CTA
+ * button uses `to={target}` from this hook instead of a hardcoded
+ * "/get-started" string, so the fix only has to live in one place.
+ */
+export function useGetStartedTarget() {
+  const { isAuthed } = useAuth();
+  return isAuthed ? "/dashboard" : "/get-started";
+}

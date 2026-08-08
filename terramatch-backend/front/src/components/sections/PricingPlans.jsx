@@ -7,6 +7,7 @@ import {
   YEARLY_DISCOUNT,
   priceForCycle,
 } from "../../constants/pricing";
+import { useGetStartedTarget } from "../../context/AuthContext";
 import { cn } from "../../utils/cn";
 
 function CheckIcon({ className }) {
@@ -97,8 +98,14 @@ function PlanFeature({ feature }) {
 }
 
 function PricingCard({ plan, cycle }) {
+  const getStartedTarget = useGetStartedTarget();
   const price = priceForCycle(plan.priceMonthly, cycle);
   const isCustom = plan.priceMonthly === null;
+  // Enterprise's ctaTo ("/contact") is left as-is — "Contact Sales" makes
+  // sense regardless of sign-in state. Every other plan's ctaTo points to
+  // the signup flow, which should route an already-signed-in visitor to
+  // their Dashboard instead of back through signup.
+  const ctaTo = plan.ctaTo === "/get-started" ? getStartedTarget : plan.ctaTo;
 
   return (
     <div
@@ -143,7 +150,7 @@ function PricingCard({ plan, cycle }) {
 
         <Button
           as={Link}
-          to={plan.ctaTo}
+          to={ctaTo}
           variant={plan.ctaVariant}
           size="md"
           className="mt-6 w-full"

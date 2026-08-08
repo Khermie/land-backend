@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import Button from "./Button";
+import SoldBadge from "./SoldBadge";
+import BuyNowModal from "./BuyNowModal";
 import { cn } from "../../utils/cn";
 import { LocationIcon } from "./Icons";
+import { useAuction } from "../../context/AuctionContext";
 
 /**
  * Vertical listing card (top image, details below) — used on the Land
@@ -13,13 +16,22 @@ import { LocationIcon } from "./Icons";
  */
 export default function LandListingTile({ land }) {
   const [isFavorited, setIsFavorited] = useState(false);
+  const [buyNowOpen, setBuyNowOpen] = useState(false);
+  const { isSold, isExpired } = useAuction();
   const { name, location, price, bids, image } = land;
+  const sold = isSold(land.slug);
+  const expired = !sold && isExpired(land.slug);
 
   return (
     <div className="w-56 shrink-0 overflow-hidden rounded-xl border border-ink-900/10 bg-white shadow-card">
       <div className="relative">
-        <span className="absolute left-2 top-2 rounded-md bg-forest-600 px-2 py-1 text-[10px] font-bold text-white">
-          For Sale
+        <span
+          className={cn(
+            "absolute left-2 top-2 rounded-md px-2 py-1 text-[10px] font-bold text-white",
+            sold ? "bg-ink-900" : expired ? "bg-amber-500" : "bg-forest-600"
+          )}
+        >
+          {sold ? "Sold" : expired ? "Expired" : "For Sale"}
         </span>
         <button
           type="button"
@@ -42,7 +54,7 @@ export default function LandListingTile({ land }) {
           src={image}
           alt={name}
           loading="lazy"
-          className="aspect-[4/3] w-full bg-mist-100 object-cover"
+          className={cn("aspect-[4/3] w-full bg-mist-100 object-cover", (sold || expired) && "opacity-70")}
         />
       </div>
 
@@ -53,17 +65,35 @@ export default function LandListingTile({ land }) {
           <span>{location}</span>
         </div>
         <p className="mt-1.5 text-sm font-bold text-ink-900">{price}</p>
-        <p className="mt-0.5 text-xs text-ink-500">{bids} Bids</p>
+        <p className="mt-0.5 text-xs text-ink-500">
+          {sold ? "Auction closed" : expired ? "Auction expired" : `${bids} Bids`}
+        </p>
+
+        {!sold && !expired && land.buyNowPrice && (
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            className="mt-2.5 w-full px-3 py-1.5 text-xs"
+            onClick={() => setBuyNowOpen(true)}
+          >
+            Buy Now
+          </Button>
+        )}
         <Button
           as={Link}
           to={`/explore-land/${land.slug}`}
           variant="outline-dark"
           size="sm"
-          className="mt-2.5 w-full px-3 py-1.5 text-xs"
+          className="mt-1.5 w-full px-3 py-1.5 text-xs"
         >
           View Details
         </Button>
       </div>
+
+      {land.buyNowPrice && !sold && !expired && (
+        <BuyNowModal open={buyNowOpen} onClose={() => setBuyNowOpen(false)} land={land} />
+      )}
     </div>
   );
 }

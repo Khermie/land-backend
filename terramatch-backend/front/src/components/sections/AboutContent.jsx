@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import Button from "../common/Button";
 import Badge from "../common/Badge";
 import { ImageSkeleton } from "../common/Skeleton";
+import { useGetStartedTarget } from "../../context/AuthContext";
 import { cn } from "../../utils/cn";
 
 function ShieldIcon({ className }) {
@@ -68,6 +69,8 @@ const STATS = [
  * screenshot if you'd like this rebuilt to match one exactly.
  */
 export default function AboutContent() {
+  const getStartedTarget = useGetStartedTarget();
+
   return (
     <div>
       {/* Hero */}
@@ -160,7 +163,7 @@ export default function AboutContent() {
               Join as a land owner, contractor, or buyer in a few minutes.
             </p>
           </div>
-          <Button as={Link} to="/get-started" variant="white" size="lg" className="shrink-0">
+          <Button as={Link} to={getStartedTarget} variant="white" size="lg" className="shrink-0">
             Get Started
           </Button>
         </div>

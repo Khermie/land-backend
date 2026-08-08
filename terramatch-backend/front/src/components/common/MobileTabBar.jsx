@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useMessages } from "../../context/MessagesContext";
 import { cn } from "../../utils/cn";
 
 function HomeIcon({ className }) {
@@ -56,16 +57,26 @@ const TABS = [
 ];
 
 /**
- * Bottom tab bar shared by the two "in-app" screens — Dashboard and
- * Messages (see App.jsx's APP_SHELL_ROUTES). These two pages render
- * without the site's usual Navbar/Footer, so this bar is their only
- * navigation — kept visible at every screen width rather than hidden
- * above mobile, since there'd otherwise be no way to navigate away on
- * a desktop browser. "Land" and "Projects" hand off to the existing
- * Explore Land / Find Contractor pages (which bring back the normal
- * site chrome), matching how the Dashboard's own cards are wired.
+ * Bottom tab bar shared by the "in-app" screens (Dashboard, Messages,
+ * Post a Project, List Your Land — see App.jsx's CHROMELESS_ROUTES).
+ * These pages render without the site's usual Navbar/Footer, so this
+ * bar is their only navigation — kept visible at every screen width
+ * rather than hidden above mobile, since there'd otherwise be no way
+ * to navigate away on a desktop browser. "Land" and "Projects" hand
+ * off to the existing Explore Land / Find Contractor pages (which
+ * bring back the normal site chrome), matching how the Dashboard's
+ * own cards are wired.
+ *
+ * The Messages tab shows a live unread badge sourced from
+ * MessagesContext — this is what a buyer's own Buy Now request badges
+ * as unread for the owner side of the same shared inbox (this mockup
+ * has a single signed-in identity, so "the owner's notification" and
+ * "this badge" are necessarily the same inbox — see the note in
+ * MessagesContext.jsx on startBuyNowRequest).
  */
 export default function MobileTabBar({ active }) {
+  const { totalUnread } = useMessages();
+
   return (
     <nav
       aria-label="Primary"
@@ -74,6 +85,7 @@ export default function MobileTabBar({ active }) {
       <div className="mx-auto flex max-w-3xl items-stretch justify-between px-2">
         {TABS.map((tab) => {
           const isActive = tab.id === active;
+          const showBadge = tab.id === "messages" && totalUnread > 0;
           return (
             <Link
               key={tab.id}
@@ -81,9 +93,19 @@ export default function MobileTabBar({ active }) {
               aria-current={isActive ? "page" : undefined}
               className="flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium"
             >
-              <tab.Icon
-                className={cn("h-5 w-5", isActive ? "text-forest-600" : "text-ink-400")}
-              />
+              <span className="relative">
+                <tab.Icon
+                  className={cn("h-5 w-5", isActive ? "text-forest-600" : "text-ink-400")}
+                />
+                {showBadge && (
+                  <span
+                    aria-label={`${totalUnread} unread message${totalUnread === 1 ? "" : "s"}`}
+                    className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-forest-600 px-1 text-[9px] font-bold text-white"
+                  >
+                    {totalUnread > 9 ? "9+" : totalUnread}
+                  </span>
+                )}
+              </span>
               <span className={isActive ? "text-forest-600" : "text-ink-500"}>{tab.label}</span>
             </Link>
           );

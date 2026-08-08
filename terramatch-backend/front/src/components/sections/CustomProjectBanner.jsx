@@ -16,7 +16,7 @@ export default function CustomProjectBanner() {
           </p>
           <Button
             as={Link}
-            to="/get-started"
+            to="/post-a-project"
             variant="primary"
             size="md"
             className="mt-6"

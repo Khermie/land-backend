@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Button from "../common/Button";
 import Logo from "../common/Logo";
 import { useAuth } from "../../context/AuthContext";
@@ -94,7 +94,13 @@ const TRUST_POINTS = [
  */
 export default function LoginForm() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
+  // Set by App.jsx's REQUIRES_AUTH_ROUTES guard when someone is bounced
+  // here from an authenticated-only page (e.g. clicking "Post a
+  // Project" while signed out) — sends them back to what they actually
+  // meant to do instead of always landing on Dashboard.
+  const redirectTo = location.state?.from ?? "/dashboard";
 
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
@@ -118,7 +124,7 @@ export default function LoginForm() {
     setIsSubmitting(true);
     setTimeout(() => {
       login();
-      navigate("/dashboard");
+      navigate(redirectTo);
     }, 500);
   }
 

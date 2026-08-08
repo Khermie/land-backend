@@ -15,7 +15,7 @@ export default function ListLandBanner() {
           </p>
           <Button
             as={Link}
-            to="/get-started"
+            to="/list-your-land"
             variant="primary"
             size="md"
             className="mt-6"

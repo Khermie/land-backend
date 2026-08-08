@@ -21,6 +21,8 @@ import Contact from "../pages/Contact";
 import Features from "../pages/Features";
 import HelpCenter from "../pages/HelpCenter";
 import Profile from "../pages/Profile";
+import PostAProject from "../pages/PostAProject";
+import ListYourLand from "../pages/ListYourLand";
 import PlaceholderPage from "../pages/PlaceholderPage";
 
 export default function AppRoutes() {
@@ -48,6 +50,8 @@ export default function AppRoutes() {
       <Route path="/features" element={<Features />} />
       <Route path="/help-center" element={<HelpCenter />} />
       <Route path="/profile" element={<Profile />} />
+      <Route path="/post-a-project" element={<PostAProject />} />
+      <Route path="/list-your-land" element={<ListYourLand />} />
       <Route
         path="*"
         element={<PlaceholderPage title="Page Not Found" />}
