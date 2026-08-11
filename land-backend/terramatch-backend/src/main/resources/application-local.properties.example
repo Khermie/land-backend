@@ -1,0 +1,26 @@
+# Copy this file to `src/main/resources/application-local.properties`
+# and fill in real values. That file is gitignored (see .gitignore) so
+# your actual secrets never get committed.
+#
+# Run with the "local" profile active so Spring Boot loads it on top of
+# application.properties, overriding these specific keys:
+#   mvn spring-boot:run -Dspring-boot.run.profiles=local
+# or, running the built jar directly:
+#   java -jar target/terramatch-backend-*.jar --spring.profiles.active=local
+#
+# Alternatively, skip profiles entirely and just export these same
+# three secrets as real environment variables before starting the app
+# (DB_PASSWORD, JWT_SECRET, and optionally DB_URL/DB_USERNAME/
+# CORS_ALLOWED_ORIGINS) — application.properties reads those directly
+# via ${VAR:default} placeholders. Either approach works; use whichever
+# fits your workflow. See README.md "Running the backend".
+
+spring.datasource.url=jdbc:postgresql://localhost:5432/terramatch_db
+spring.datasource.username=postgres
+spring.datasource.password=your-local-postgres-password
+
+# Generate a real secret rather than using this placeholder — e.g.:
+#   openssl rand -base64 48
+app.jwt.secret=replace-this-with-a-long-random-value-before-running
+
+app.cors.allowed-origins=http://localhost:5173
